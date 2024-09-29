@@ -114,6 +114,7 @@ void CRestirIntegrateAndDenoise::RestirDenoise(ComputeContext& cptContext)
 	cptContext.SetDynamicDescriptor(2, 0, g_RestirDiffuseIndirect[0].GetUAV());
 	cptContext.SetDynamicDescriptor(2, 1, g_RestirSpecularIndirect[0].GetUAV());
 
+
 	cptContext.FlushResourceBarriers();
 
 	cptContext.Dispatch(DeviceAndRoundUp(GetGlobalResource().restirSceneInfo.g_full_screen_texsize.x, 16), DeviceAndRoundUp(GetGlobalResource().restirSceneInfo.g_full_screen_texsize.y, 16), 1);
