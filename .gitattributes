@@ -1,0 +1,5 @@
+*.DDS filter=lfs diff=lfs merge=lfs -text
+*.tag filter=lfs diff=lfs merge=lfs -text
+*.tga filter=lfs diff=lfs merge=lfs -text
+*.h3d filter=lfs diff=lfs merge=lfs -text
+*.png filter=lfs diff=lfs merge=lfs -text
