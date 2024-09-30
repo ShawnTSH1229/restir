@@ -98,28 +98,30 @@ float3 InverseToneMappingLight(float3 light)
     return light / (1.0 - Luma(light));
 }
 
-uint3 Rand3DPCG32(int3 p)
+uint3 Rand3DPCG16(int3 p)
 {
-	uint3 v = uint3(p);
-	v = v * 1664525u + 1013904223u;
+    uint3 v = uint3(p);
+    v = v * 1664525u + 1013904223u;
+   
+    v.x += v.y * v.z;
+    v.y += v.z * v.x;
+    v.z += v.x * v.y;
+    v.x += v.y * v.z;
+    v.y += v.z * v.x;
+    v.z += v.x * v.y;
 
-	v.x += v.y*v.z;
-	v.y += v.z*v.x;
-	v.z += v.x*v.y;
-
-	v ^= v >> 16u;
-
-	v.x += v.y*v.z;
-	v.y += v.z*v.x;
-	v.z += v.x*v.y;
-
-	return v;
+    return v >> 16u;
 }
 
 float2 Hammersley16( uint Index, uint NumSamples, uint2 Random )
 {
 	float E1 = frac( (float)Index / NumSamples + float( Random.x ) * (1.0 / 65536.0) );
-	float E2 = float( ( reversebits(Index) >> 16 ) ^ Random.y ) * (1.0 / 65536.0);
+    uint reversebits_value = reversebits(Index);
+    uint shift_value = reversebits_value >> 16;
+    uint xor_value = shift_value ^ Random.y;
+    float unscaled_value = float(xor_value);
+
+	float E2 = unscaled_value * (1.0 / 65536.0);
 	return float2( E1, E2 );
 }
 

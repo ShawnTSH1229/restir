@@ -250,7 +250,7 @@ void InitialSamplingRayGen()
     }
     else
     {
-        radiance = float3(0.2,0.2,0.2);
+        radiance = float3(0.05,0.05,0.05);
         payLoad.world_normal = -ray.Direction;
     }
         

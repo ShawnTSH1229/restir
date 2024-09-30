@@ -28,8 +28,11 @@ namespace Graphics
     ColorBuffer g_OverlayBuffer;
     ColorBuffer g_HorizontalBuffer;
 
+    ColorBuffer g_SceneColorCombinedBuffer;  // R11G11B10_FLOAT
+
     ColorBuffer g_SceneGBufferA;
     ColorBuffer g_SceneGBufferB;
+    ColorBuffer g_SceneGBufferC;
 
     ColorBuffer g_ReservoirRayDirectionHistoryPingPong[2]; // R16G16B16A16_FLOAT Half Res
     ColorBuffer g_ReservoirRayRadianceHistoryPingPong[2];  // R16G16B16_FLOAT Half Res
@@ -47,6 +50,9 @@ namespace Graphics
 
     ColorBuffer g_RestirDiffuseIndirect[2];
     ColorBuffer g_RestirSpecularIndirect[2];
+
+    ColorBuffer g_RestirDiffuseIndirectHist;
+    ColorBuffer g_RestirSpecularIndirectHist;
 
     ShadowBuffer g_ShadowBuffer;
 
@@ -135,8 +141,11 @@ void Graphics::InitializeRenderingBuffers( uint32_t bufferWidth, uint32_t buffer
         g_VelocityBuffer.Create( L"Motion Vectors", bufferWidth, bufferHeight, 1, DXGI_FORMAT_R32_UINT );
         g_PostEffectsBuffer.Create( L"Post Effects Buffer", bufferWidth, bufferHeight, 1, DXGI_FORMAT_R32_UINT );
 
+        g_SceneColorCombinedBuffer.Create(L"g_SceneColorCombinedBuffer", bufferWidth, bufferHeight, 1, DefaultHdrColorFormat, esram);
+
         g_SceneGBufferA.Create(L"g_SceneGBufferA", bufferWidth, bufferHeight, 1, DXGI_FORMAT_R16G16B16A16_FLOAT, esram);
         g_SceneGBufferB.Create(L"g_SceneGBufferB", bufferWidth, bufferHeight, 1, DXGI_FORMAT_R16G16B16A16_FLOAT, esram);
+        g_SceneGBufferC.Create(L"g_SceneGBufferC", bufferWidth, bufferHeight, 1, DXGI_FORMAT_R16G16B16A16_FLOAT, esram);
 
         for (int index = 0; index < 2; index++)
         {
@@ -163,6 +172,10 @@ void Graphics::InitializeRenderingBuffers( uint32_t bufferWidth, uint32_t buffer
 
         g_RestirSpecularIndirect[0].Create(L"g_RestirSpecularIndirect0", bufferWidth, bufferHeight, 1, DXGI_FORMAT_R16G16B16A16_FLOAT, esram);
         g_RestirSpecularIndirect[1].Create(L"g_RestirSpecularIndirect1", bufferWidth, bufferHeight, 1, DXGI_FORMAT_R16G16B16A16_FLOAT, esram);
+
+        g_RestirDiffuseIndirectHist.Create(L"g_RestirSpecularIndirectHist", bufferWidth, bufferHeight, 1, DXGI_FORMAT_R16G16B16A16_FLOAT, esram);
+        g_RestirSpecularIndirectHist.Create(L"g_RestirSpecularIndirectHist", bufferWidth, bufferHeight, 1, DXGI_FORMAT_R16G16B16A16_FLOAT, esram);
+
 
         esram.PushStack();	// Render HDR image
 

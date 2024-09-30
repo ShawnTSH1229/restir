@@ -56,7 +56,6 @@ void CRestirResamplingPass::TemporalResampling(ComputeContext& cptContext)
 	int hist_idx = (GetGlobalResource().getCurrentFrameBufferIndex() + 0) % 2;
 	int spatial_pingpong_idx = 0;
 
-
 	cptContext.SetRootSignature(restirTemporalResamplingnSig);
 	cptContext.SetPipelineState(restirTemporalResamplingnPso);
 

@@ -14,8 +14,10 @@ struct SOutGBuffer
 {
 	float4 gbufferA : SV_Target0;
 	float4 gbufferB : SV_Target1;
+	float4 gbufferC : SV_Target2;
 };
 
+Texture2D<float3> texDiffuse		: register(t0);
 Texture2D<float3> texNormal			: register(t3);
 SamplerState defaultTextureSampler       	: register(s0);
 
@@ -28,8 +30,12 @@ SOutGBuffer main(VSOutput vsOutput)
     float3 worldNormal = normalize(mul(texNormalValue, tbn));
     float roughness = 1.0;
 	
+	// hack here.
+	float3 diffuse = texDiffuse.Sample(defaultTextureSampler, vsOutput.uv).xyz;
+
 	gbufferData.gbufferA = float4(worldNormal, 1.0);
 	gbufferData.gbufferB = float4(vsOutput.worldPos,roughness);
+	gbufferData.gbufferC = float4(diffuse,roughness);
     return gbufferData;
 }
 

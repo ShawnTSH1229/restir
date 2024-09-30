@@ -27,7 +27,7 @@ void CGBufferGenPass::Init()
         { "BITANGENT", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
     };
 
-    DXGI_FORMAT GBufferFormat[2] = { g_SceneGBufferA.GetFormat(),g_SceneGBufferB.GetFormat()};
+    DXGI_FORMAT GBufferFormat[3] = { g_SceneGBufferA.GetFormat(),g_SceneGBufferB.GetFormat(),g_SceneGBufferB.GetFormat() };
     DXGI_FORMAT DepthFormat = g_SceneDepthBuffer.GetFormat();
 
     // PSO
@@ -42,7 +42,7 @@ void CGBufferGenPass::Init()
        m_GBufferGenPso.SetDepthStencilState(DepthStateReadWrite);
        m_GBufferGenPso.SetInputLayout(_countof(vertElem), vertElem);
        m_GBufferGenPso.SetPrimitiveTopologyType(D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE);
-       m_GBufferGenPso.SetRenderTargetFormats(2, GBufferFormat, DepthFormat);
+       m_GBufferGenPso.SetRenderTargetFormats(3, GBufferFormat, DepthFormat);
        m_GBufferGenPso.SetVertexShader(pVsShaderCode->GetBufferPointer(), pVsShaderCode->GetBufferSize());
        m_GBufferGenPso.SetPixelShader(pPsShaderCode->GetBufferPointer(), pPsShaderCode->GetBufferSize());
        m_GBufferGenPso.Finalize();
@@ -72,16 +72,18 @@ void CGBufferGenPass::GenerateGBuffer(GraphicsContext& context, GlobalConstants&
     context.SetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     context.SetDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, Renderer::s_TextureHeap.GetHeapPointer());
 
-    D3D12_CPU_DESCRIPTOR_HANDLE RTVs[2] = { g_SceneGBufferA.GetRTV() ,g_SceneGBufferB.GetRTV() };
+    D3D12_CPU_DESCRIPTOR_HANDLE RTVs[3] = { g_SceneGBufferA.GetRTV() ,g_SceneGBufferB.GetRTV()  ,g_SceneGBufferC.GetRTV() };
 
     context.TransitionResource(g_SceneGBufferA, D3D12_RESOURCE_STATE_RENDER_TARGET);
     context.TransitionResource(g_SceneGBufferB, D3D12_RESOURCE_STATE_RENDER_TARGET);
+    context.TransitionResource(g_SceneGBufferC, D3D12_RESOURCE_STATE_RENDER_TARGET);
     context.TransitionResource(g_SceneDepthBuffer, D3D12_RESOURCE_STATE_DEPTH_WRITE);
-    context.SetRenderTargets(2, RTVs, g_SceneDepthBuffer.GetDSV());
+    context.SetRenderTargets(3, RTVs, g_SceneDepthBuffer.GetDSV());
 
     context.ClearDepth(g_SceneDepthBuffer);
     context.ClearColor(g_SceneGBufferA);
     context.ClearColor(g_SceneGBufferB);
+    context.ClearColor(g_SceneGBufferC);
 
     context.SetViewportAndScissor(Viewport, Scissor);
     context.FlushResourceBarriers();

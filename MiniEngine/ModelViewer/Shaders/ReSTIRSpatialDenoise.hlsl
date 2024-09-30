@@ -35,16 +35,16 @@ void ReSTIRSpatialDenoiseCS(uint2 dispatch_thread_id : SV_DispatchThreadID)
             float3 world_normal = gbuffer_world_normal[current_pixel_pos].xyz;
             float4 current_sample_scene_plane = float4(world_normal, dot(world_position, world_normal));
 
-            const float biliteral_filter_radius = 2.0f * 2.0f / 1000.0f;
+            const float biliteral_filter_radius = 32.0f / 1000.0f;
             float kernel_radius = biliteral_filter_radius * g_full_screen_texsize.x;
             float guassian_normalize = 2.0 / (kernel_radius * kernel_radius);
-            uint2 random_seed = Rand3DPCG32(int3(current_pixel_pos, g_current_frame_index % 8)).xy;
+            uint2 random_seed = Rand3DPCG16(int3(current_pixel_pos, g_current_frame_index % 8)).xy;
 
-            float3 sample_camera_distance = distance(g_camera_worldpos, world_position);
+            float sample_camera_distance = distance(g_camera_worldpos, world_position);
 
             float total_weight = 0.0f;
-            const uint biliteral_sample_num = 16;
-            for(int sample_index = 0; sample_index < biliteral_sample_num; sample_index++)
+            const uint biliteral_sample_num = 32;
+            for(uint sample_index = 0; sample_index < biliteral_sample_num; sample_index++)
             {
                 float2 offset = (Hammersley16(sample_index, biliteral_sample_num, random_seed) - 0.5f) * 2.0f * kernel_radius;
                 int2 neighbor_position = current_pixel_pos + offset;

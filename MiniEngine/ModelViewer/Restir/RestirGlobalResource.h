@@ -37,6 +37,8 @@ struct SGlobalResource
 	TextureRef STBNScalar;
 	TextureRef STBNVec2;
 
+	int m_visualize_type = 0;
+
 	inline int getCurrentFrameBufferIndex() { return (currentFrameIndex % 3); }
 	inline void incrementFrameIndex() { currentFrameIndex++;; }
 	inline int getCurrentFrameIndex() { return currentFrameIndex; };

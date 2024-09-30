@@ -45,7 +45,7 @@ void UpscaleAndIntegrateCS(uint2 dispatch_thread_id : SV_DispatchThreadID)
         float distance_to_camera = length(vec_to_camera);
 
         const uint upscale_number_sample = 16;
-        const float upscale_kernel_size = 3.0;
+        const float upscale_kernel_size = 2.0;
         const float kernel_scale = upscale_kernel_size * 2.0 * 4.0 / upscale_number_sample;
 
         float noise = GetBlueNoiseScalar(stbn_scalar_tex, current_pixel_pos, g_current_frame_index);
@@ -72,6 +72,8 @@ void UpscaleAndIntegrateCS(uint2 dispatch_thread_id : SV_DispatchThreadID)
                 float plane_distance = abs(dot(float4(reservoir_world_position, -1.0), scene_plane));
 
                 float relative_distance = plane_distance / distance_to_camera;
+                
+                //todo: fix me
                 float depth_weight = exp2(-10000.0 * (relative_distance * relative_distance));
                 
                 // diffuse lighting
@@ -87,12 +89,6 @@ void UpscaleAndIntegrateCS(uint2 dispatch_thread_id : SV_DispatchThreadID)
 
                 // weight
                 total_weight += depth_weight;
-                
-                // bilateral filter
-                //float sample_luma = Luma(sample_light);
-                //float old_mean = mean;
-                //mean += (depth_weight / total_weight) * (sample_luma - old_mean);
-                //s += depth_weight * (sample_luma - mean) * (sample_luma - old_mean);
             }
         }
 

@@ -215,8 +215,8 @@ void RestirApp::Startup( void )
     TemporalEffects::EnableTAA = false;
     FXAA::Enable = false;
     PostEffects::EnableHDR = true;
-    PostEffects::EnableAdaptation = true;
-    SSAO::Enable = true;
+    PostEffects::EnableAdaptation = false;
+    SSAO::Enable = false;
 
     Renderer::Initialize();
 
@@ -287,11 +287,24 @@ namespace Graphics
     extern EnumVar DebugZoom;
 }
 
+#define VIS_KEY_PRESS(x)\
+if (GameInput::IsFirstPressed(GameInput::kKey_##x)) { GetGlobalResource().m_visualize_type = x; };
+
+
 void RestirApp::Update( float deltaT )
 {
     ScopedTimer _prof(L"Update State");
 
-    
+    VIS_KEY_PRESS(0);
+    VIS_KEY_PRESS(1);
+    VIS_KEY_PRESS(2);
+    VIS_KEY_PRESS(3);
+    VIS_KEY_PRESS(4);
+    VIS_KEY_PRESS(5);
+    VIS_KEY_PRESS(6);
+    VIS_KEY_PRESS(7);
+    VIS_KEY_PRESS(8);
+    VIS_KEY_PRESS(9);
     
     if (GameInput::IsFirstPressed(GameInput::kLShoulder))
         DebugZoom.Decrement();
@@ -418,6 +431,11 @@ void RestirApp::RenderScene( void )
 
         SSAO::Enable = false;
         Sponza::RenderScene(gfxContext, m_Camera, viewport, scissor, false, false);
+
+        if (GetGlobalResource().m_visualize_type != 5)
+        {
+            integrateAndDenoise.SimpleCombineLight(gfxContext);
+        }
     }
 
     gfxContext.Finish();

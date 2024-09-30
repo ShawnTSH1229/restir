@@ -18,17 +18,59 @@ void CRestirIntegrateAndDenoise::Init()
 		restirIntegratePso.Finalize();
 	}
 
-	restirDenoiseSig.Reset(3);
-	restirDenoiseSig[0].InitAsConstantBuffer(0);
-	restirDenoiseSig[1].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 4);
-	restirDenoiseSig[2].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 2);
-	restirDenoiseSig.Finalize(L"restirDenoiseSig", D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+	restirSpatialDenoiseSig.Reset(3);
+	restirSpatialDenoiseSig[0].InitAsConstantBuffer(0);
+	restirSpatialDenoiseSig[1].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 4);
+	restirSpatialDenoiseSig[2].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 2);
+	restirSpatialDenoiseSig.Finalize(L"restirDenoiseSig", D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
 	{
 		std::shared_ptr<SCompiledShaderCode> pCsShaderCode = GetGlobalResource().m_ShaderCompilerFxc.Compile(L"Shaders/ReSTIRSpatialDenoise.hlsl", L"ReSTIRSpatialDenoiseCS", L"cs_5_1", nullptr, 0);
-		restirDenoisePso.SetRootSignature(restirDenoiseSig);
-		restirDenoisePso.SetComputeShader(pCsShaderCode->GetBufferPointer(), pCsShaderCode->GetBufferSize());
-		restirDenoisePso.Finalize();
+		restirSpatialDenoisePso.SetRootSignature(restirSpatialDenoiseSig);
+		restirSpatialDenoisePso.SetComputeShader(pCsShaderCode->GetBufferPointer(), pCsShaderCode->GetBufferSize());
+		restirSpatialDenoisePso.Finalize();
+	}
+
+	restirCopySig.Reset(3);
+	restirCopySig[0].InitAsConstantBuffer(0);
+	restirCopySig[1].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 1);
+	restirCopySig[2].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 1);
+	restirCopySig.Finalize(L"restirCopySig", D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+
+
+	{
+		std::shared_ptr<SCompiledShaderCode> pCsShaderCode = GetGlobalResource().m_ShaderCompilerFxc.Compile(L"Shaders/RestirSceneColorCopy.hlsl", L"ReSTIRSceneColorCopyCS", L"cs_5_1", nullptr, 0);
+		restirCopyPso.SetRootSignature(restirCopySig);
+		restirCopyPso.SetComputeShader(pCsShaderCode->GetBufferPointer(), pCsShaderCode->GetBufferSize());
+		restirCopyPso.Finalize();
+	}
+
+	restirCombineSig.Reset(3);
+	restirCombineSig[0].InitAsConstantBuffer(0);
+	restirCombineSig[1].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 4);
+	restirCombineSig[2].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 1);
+	restirCombineSig.Finalize(L"restirCombineSig", D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+
+
+	{
+		std::shared_ptr<SCompiledShaderCode> pCsShaderCode = GetGlobalResource().m_ShaderCompilerFxc.Compile(L"Shaders/RestirSimpleCombineLight.hlsl", L"ReSTIRSimpleCombineCS", L"cs_5_1", nullptr, 0);
+		restirCombinePso.SetRootSignature(restirCombineSig);
+		restirCombinePso.SetComputeShader(pCsShaderCode->GetBufferPointer(), pCsShaderCode->GetBufferSize());
+		restirCombinePso.Finalize();
+	}
+
+	restirTemporalDenoiseSig.Reset(3,1);
+	restirTemporalDenoiseSig.InitStaticSampler(0, SamplerLinearClampDesc);
+	restirTemporalDenoiseSig[0].InitAsConstantBuffer(0);
+	restirTemporalDenoiseSig[1].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 0, 3);
+	restirTemporalDenoiseSig[2].InitAsDescriptorRange(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 0, 2);
+	restirTemporalDenoiseSig.Finalize(L"restirTemporalDenoiseSig", D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+
+	{
+		std::shared_ptr<SCompiledShaderCode> pCsShaderCode = GetGlobalResource().m_ShaderCompilerFxc.Compile(L"Shaders/RestirTemporalDenoise.hlsl", L"ReSTIRTemporalDenoiseCS", L"cs_5_1", nullptr, 0);
+		restirTemporalDenoisePso.SetRootSignature(restirTemporalDenoiseSig);
+		restirTemporalDenoisePso.SetComputeShader(pCsShaderCode->GetBufferPointer(), pCsShaderCode->GetBufferSize());
+		restirTemporalDenoisePso.Finalize();
 	}
 }
 
@@ -36,7 +78,20 @@ void CRestirIntegrateAndDenoise::IntegrateAndDenoise(GraphicsContext& gfxContext
 {
 	ComputeContext& cptContext = gfxContext.GetComputeContext();
 	RestirIntegrate(cptContext);
-	RestirDenoise(cptContext);
+	if (GetGlobalResource().getCurrentFrameIndex() > 2)
+	{
+		RestirTemporalDenoise(cptContext);
+		cptContext.CopyBuffer(g_RestirDiffuseIndirectHist, g_RestirDiffuseIndirect[1]);
+		cptContext.CopyBuffer(g_RestirSpecularIndirectHist, g_RestirSpecularIndirect[1]);
+	}
+	
+	RestirSpatialDenoise(cptContext);
+
+	if (GetGlobalResource().getCurrentFrameIndex() <= 2)
+	{
+		cptContext.CopyBuffer(g_RestirDiffuseIndirectHist, g_RestirDiffuseIndirect[1]);
+		cptContext.CopyBuffer(g_RestirSpecularIndirectHist, g_RestirSpecularIndirect[1]);
+	}
 }
 
 void CRestirIntegrateAndDenoise::RestirIntegrate(ComputeContext& cptContext)
@@ -86,10 +141,38 @@ void CRestirIntegrateAndDenoise::RestirIntegrate(ComputeContext& cptContext)
 	cptContext.Dispatch(DeviceAndRoundUp(GetGlobalResource().restirSceneInfo.g_full_screen_texsize.x , 16), DeviceAndRoundUp(GetGlobalResource().restirSceneInfo.g_full_screen_texsize.y , 16), 1);
 }
 
-void CRestirIntegrateAndDenoise::RestirDenoise(ComputeContext& cptContext)
+void CRestirIntegrateAndDenoise::RestirTemporalDenoise(ComputeContext& cptContext)
 {
-	cptContext.SetRootSignature(restirDenoiseSig);
-	cptContext.SetPipelineState(restirDenoisePso);
+	cptContext.SetRootSignature(restirTemporalDenoiseSig);
+	cptContext.SetPipelineState(restirTemporalDenoisePso);
+
+	cptContext.TransitionResource(g_RestirDiffuseIndirectHist, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+	cptContext.TransitionResource(g_RestirSpecularIndirectHist, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+	cptContext.TransitionResource(g_SceneGBufferB, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+
+	cptContext.TransitionResource(g_RestirDiffuseIndirect[1], D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+	cptContext.TransitionResource(g_RestirSpecularIndirect[1], D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+
+	cptContext.FlushResourceBarriers();
+
+	cptContext.SetDynamicConstantBufferView(0, sizeof(SRestirSceneInfo), &GetGlobalResource().restirSceneInfo);
+
+	cptContext.SetDynamicDescriptor(1, 0, g_RestirDiffuseIndirectHist.GetSRV());
+	cptContext.SetDynamicDescriptor(1, 1, g_RestirSpecularIndirectHist.GetSRV());
+	cptContext.SetDynamicDescriptor(1, 2, g_SceneGBufferB.GetSRV());
+
+	cptContext.SetDynamicDescriptor(2, 0, g_RestirDiffuseIndirect[1].GetUAV());
+	cptContext.SetDynamicDescriptor(2, 1, g_RestirSpecularIndirect[1].GetUAV());
+
+	cptContext.Dispatch(DeviceAndRoundUp(GetGlobalResource().restirSceneInfo.g_full_screen_texsize.x, 16), DeviceAndRoundUp(GetGlobalResource().restirSceneInfo.g_full_screen_texsize.y, 16), 1);
+	
+	
+}
+
+void CRestirIntegrateAndDenoise::RestirSpatialDenoise(ComputeContext& cptContext)
+{
+	cptContext.SetRootSignature(restirSpatialDenoiseSig);
+	cptContext.SetPipelineState(restirSpatialDenoisePso);
 
 	cptContext.TransitionResource(g_RestirDiffuseIndirect[1], D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
 	cptContext.TransitionResource(g_RestirSpecularIndirect[1], D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
@@ -118,4 +201,56 @@ void CRestirIntegrateAndDenoise::RestirDenoise(ComputeContext& cptContext)
 	cptContext.FlushResourceBarriers();
 
 	cptContext.Dispatch(DeviceAndRoundUp(GetGlobalResource().restirSceneInfo.g_full_screen_texsize.x, 16), DeviceAndRoundUp(GetGlobalResource().restirSceneInfo.g_full_screen_texsize.y, 16), 1);
+
+
+
+	cptContext.TransitionResource(g_RestirDiffuseIndirect[0], D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+	cptContext.TransitionResource(g_RestirSpecularIndirect[0], D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+}
+
+void CRestirIntegrateAndDenoise::SimpleCombineLight(GraphicsContext& gfxContext)
+{
+	ComputeContext& cptContext = gfxContext.GetComputeContext();
+	{
+		cptContext.SetRootSignature(restirCopySig);
+		cptContext.SetPipelineState(restirCopyPso);
+
+		cptContext.TransitionResource(g_SceneColorBuffer, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+		cptContext.TransitionResource(g_SceneColorCombinedBuffer, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+
+		cptContext.FlushResourceBarriers();
+
+		cptContext.SetDynamicConstantBufferView(0, sizeof(SRestirSceneInfo), &GetGlobalResource().restirSceneInfo);
+		cptContext.SetDynamicDescriptor(1, 0, g_SceneColorBuffer.GetSRV());
+		cptContext.SetDynamicDescriptor(2, 0, g_SceneColorCombinedBuffer.GetUAV());
+
+		cptContext.Dispatch(DeviceAndRoundUp(GetGlobalResource().restirSceneInfo.g_full_screen_texsize.x, 16), DeviceAndRoundUp(GetGlobalResource().restirSceneInfo.g_full_screen_texsize.y, 16), 1);
+	}
+
+	{
+		cptContext.SetRootSignature(restirCombineSig);
+		cptContext.SetPipelineState(restirCombinePso);
+
+		cptContext.TransitionResource(g_SceneColorCombinedBuffer, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+		cptContext.TransitionResource(g_SceneColorBuffer, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+		cptContext.TransitionResource(g_RestirDiffuseIndirect[0], D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+		cptContext.TransitionResource(g_RestirSpecularIndirect[0], D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+		cptContext.TransitionResource(g_SceneGBufferC, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+
+		cptContext.FlushResourceBarriers();
+
+		cptContext.SetDynamicConstantBufferView(0, sizeof(SRestirSceneInfo), &GetGlobalResource().restirSceneInfo);
+		cptContext.SetDynamicDescriptor(1, 0, g_SceneColorCombinedBuffer.GetSRV());
+		cptContext.SetDynamicDescriptor(1, 1, g_RestirDiffuseIndirect[0].GetSRV());
+		cptContext.SetDynamicDescriptor(1, 2, g_RestirSpecularIndirect[0].GetSRV());
+		cptContext.SetDynamicDescriptor(1, 3, g_SceneGBufferC.GetSRV());
+		cptContext.SetDynamicDescriptor(2, 0, g_SceneColorBuffer.GetUAV());
+
+		cptContext.Dispatch(DeviceAndRoundUp(GetGlobalResource().restirSceneInfo.g_full_screen_texsize.x, 16), DeviceAndRoundUp(GetGlobalResource().restirSceneInfo.g_full_screen_texsize.y, 16), 1);
+
+		cptContext.TransitionResource(g_SceneColorBuffer, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+		cptContext.FlushResourceBarriers();
+	}
+
+	
 }

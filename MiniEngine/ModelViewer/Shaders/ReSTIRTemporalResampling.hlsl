@@ -54,15 +54,11 @@ void TemporalResamplingCS(uint2 dispatch_thread_id : SV_DispatchThreadID)
         const bool isHistoryOnScreen = all(pre_view_screen_pos < g_restir_texturesize);
         if(isHistoryOnScreen)
         {
-            const uint num_temporal_samples = 9;
-            
             float noise = GetBlueNoiseScalar(stbn_scalar_tex, reservoir_coord, g_current_frame_index);
-
             uint2 history_reservoir_sample = clamp(pre_view_texture_pos, uint2(0,0), int2(g_restir_texturesize) - int2(1,1));
-
             float3 history_world_position = history_downsampled_world_pos[history_reservoir_sample].xyz;
             float3 history_world_normal = history_downsampled_world_normal[history_reservoir_sample].xyz;
-
+            
             bool is_history_nearby = (distance(history_world_position, world_position) < 10.0f) && (abs(dot(history_world_normal,world_normal) > 0.25));
 
             if(any(history_world_position != float3(0,0,0)) && is_history_nearby)
