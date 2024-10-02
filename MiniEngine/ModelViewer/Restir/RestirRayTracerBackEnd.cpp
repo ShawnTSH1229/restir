@@ -146,18 +146,6 @@ void CRestirRayTracer::InitAccelerationStructure()
        D3D12_RAYTRACING_INSTANCE_DESC& instanceDesc = instanceDescs[i];
        pRaytracingDescriptorHeap->AllocateBufferUav(blas);
 
-       //{
-       //    //UINT descriptorHeapIndex;
-       //    D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle = AllocateDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE::D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1);
-       //
-       //    D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
-       //    uavDesc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
-       //    uavDesc.Buffer.NumElements = (UINT)(blas->GetDesc().Width / sizeof(UINT32));
-       //    uavDesc.Buffer.Flags = D3D12_BUFFER_UAV_FLAG_RAW;
-       //    uavDesc.Format = DXGI_FORMAT_R32_TYPELESS;
-       //
-       //    Graphics::g_Device->CreateUnorderedAccessView(blas, nullptr, &uavDesc, cpuHandle);
-       //}
 
        // Identity matrix
        ZeroMemory(instanceDesc.Transform, sizeof(instanceDesc.Transform));
@@ -167,12 +155,8 @@ void CRestirRayTracer::InitAccelerationStructure()
    
        instanceDesc.AccelerationStructure = blas->GetGPUVirtualAddress();
        instanceDesc.Flags = 0;
-       //stanceDesc.InstanceID = 0;
        instanceDesc.InstanceID = i;
-
        instanceDesc.InstanceMask = 1;
-
-       //instanceDesc.InstanceContributionToHitGroupIndex = i;
        instanceDesc.InstanceContributionToHitGroupIndex = 0;
    }
    
@@ -183,20 +167,6 @@ void CRestirRayTracer::InitAccelerationStructure()
    
    topLevelInputs.InstanceDescs = instanceDataBuffer.GetGpuVirtualAddress();
    topLevelInputs.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
-   
-  //// TLAS Desc
-  //{
-  //    D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
-  //    srvDesc.ViewDimension = D3D12_SRV_DIMENSION_RAYTRACING_ACCELERATION_STRUCTURE;
-  //    srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-  //    srvDesc.RaytracingAccelerationStructure.Location = g_bvh_topLevelAccelerationStructure->GetGPUVirtualAddress();
-  //
-  //    //UINT descriptorHeapIndex;
-  //    D3D12_CPU_DESCRIPTOR_HANDLE tlasSRVCpuHandle = AllocateDescriptor(D3D12_DESCRIPTOR_HEAP_TYPE::D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 1);
-  //
-  //    Graphics::g_Device->CreateShaderResourceView(nullptr, &srvDesc, tlasSRVCpuHandle);
-  //    rayTracingTlas = CRayTracingTLAS(g_bvh_topLevelAccelerationStructure, D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE, tlasSRVCpuHandle);
-  //}
    
    tlasResource = g_bvh_topLevelAccelerationStructure;
 

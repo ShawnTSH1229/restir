@@ -90,15 +90,15 @@ struct SReservoir
 {
     SSample m_sample;
     float weight_sum;
-    float M; //ReSTIR:Paper(3.1): First, M candidate samples y = y1,..., yM are sampled from a source distribution p(y).
-    float comb_weight;
+    float M; 
+    float inverse_sir_pdf;
 };
 
 void InitializeReservoir(inout SReservoir reservoir)
 {
     reservoir.weight_sum = 0;
     reservoir.M = 0;
-    reservoir.comb_weight = 0;
+    reservoir.inverse_sir_pdf = 0;
 }
 
 bool UpdateReservoir(inout SReservoir reservoir, SSample new_sample, float weight_new, float noise)
@@ -136,7 +136,7 @@ void StoreReservoir(
     reservoir_hit_distance[reservoir_coord] = reservoir_sample.hit_distance;
     reservoir_hit_normal[reservoir_coord] = float4(reservoir_sample.hit_normal,1.0);
 
-    reservoir_weights[reservoir_coord] = float4(reservoir.weight_sum, reservoir.M, reservoir.comb_weight,1.0);
+    reservoir_weights[reservoir_coord] = float4(reservoir.weight_sum, reservoir.M, reservoir.inverse_sir_pdf,1.0);
 }
 
 
@@ -210,8 +210,6 @@ void InitialSamplingRayGen()
 
     float2 E = GetBlueNoiseVector2(stbn_vec2_tex3d, reservoir_coord, g_current_frame_index);
     float4 hemi_sphere_sample = UniformSampleHemisphere(E);
-    
-    //hemi_sphere_sample = float4(0,-1,1,1);
 
     float3x3 tangent_basis = GetTangentBasis(world_normal);
 
@@ -239,7 +237,6 @@ void InitialSamplingRayGen()
 
         SInitialSamplingRayPayLoad shadow_payLoad = (SInitialSamplingRayPayLoad)0;
         TraceRay(rtScene, RAY_FLAG_FORCE_OPAQUE, RAY_TRACING_MASK_OPAQUE, RT_SHADOW_SHADER_INDEX, 1,0, shadow_ray, shadow_payLoad);
-
         if(shadow_payLoad.hit_t <= 0.0)
         {
             float NoL = saturate(dot(light_direction.xyz, payLoad.world_normal));
@@ -269,7 +266,7 @@ void InitialSamplingRayGen()
     InitializeReservoir(reservoir);
     UpdateReservoir(reservoir, initial_sample, w, 0);
     reservoir.m_sample.pdf = target_pdf;
-    reservoir.comb_weight = reservoir.weight_sum / (max(reservoir.M * reservoir.m_sample.pdf, 0.00001f));
+    reservoir.inverse_sir_pdf = reservoir.weight_sum / (max(reservoir.M * reservoir.m_sample.pdf, 0.00001f));
 
     StoreReservoir(reservoir_coord, reservoir, rw_reservoir_ray_direction, rw_reservoir_ray_radiance, rw_reservoir_hit_distance, rw_reservoir_hit_normal, rw_reservoir_weights);
 }
@@ -317,30 +314,11 @@ void InitialSamplingRayHit(inout SInitialSamplingRayPayLoad payload, in SRayTrac
         const float3 normal1 = asfloat(scene_vtx_buffer.Load3(info.m_normalAttributeOffsetBytes + ii.y * info.m_attributeStrideBytes));
         const float3 normal2 = asfloat(scene_vtx_buffer.Load3(info.m_normalAttributeOffsetBytes + ii.z * info.m_attributeStrideBytes));
     
-        //  const float3 tangent0 = asfloat(scene_vtx_buffer.Load3(info.m_tangentAttributeOffsetBytes + ii.x * info.m_attributeStrideBytes));
-        //  const float3 tangent1 = asfloat(scene_vtx_buffer.Load3(info.m_tangentAttributeOffsetBytes + ii.y * info.m_attributeStrideBytes));
-        //  const float3 tangent2 = asfloat(scene_vtx_buffer.Load3(info.m_tangentAttributeOffsetBytes + ii.z * info.m_attributeStrideBytes));
-        //  
-        //  // Reintroduced the bitangent because we aren't storing the handedness of the tangent frame anywhere.  Assuming the space
-        //  // is right-handed causes normal maps to invert for some surfaces.  The Sponza mesh has all three axes of the tangent frame.
-        //  //float3 vsBitangent = normalize(cross(vsNormal, vsTangent)) * (isRightHanded ? 1.0 : -1.0);
-        //  const float3 bitangent0 = asfloat(scene_vtx_buffer.Load3(info.m_bitangentAttributeOffsetBytes + ii.x * info.m_attributeStrideBytes));
-        //  const float3 bitangent1 = asfloat(scene_vtx_buffer.Load3(info.m_bitangentAttributeOffsetBytes + ii.y * info.m_attributeStrideBytes));
-        //  const float3 bitangent2 = asfloat(scene_vtx_buffer.Load3(info.m_bitangentAttributeOffsetBytes + ii.z * info.m_attributeStrideBytes));
-
         float2 uv = bary.x * uv0 + bary.y * uv1 + bary.z * uv2;
         float3 vsNormal = normalize(normal0 * bary.x + normal1 * bary.y + normal2 * bary.z);
-        //float3 vsTangent = normalize(tangent0 * bary.x + tangent1 * bary.y + tangent2 * bary.z);
-        //float3 vsBitangent = normalize(bitangent0 * bary.x + bitangent1 * bary.y + bitangent2 * bary.z);
 
         Texture2D<float4> diffTex = bindless_texs[info.m_materialInstanceId * 2 + 0];
-        //Texture2D<float4> normalTex = bindless_texs[info.m_materialInstanceId * 2 + 1];
-
         const float3 diffuseColor = diffTex.SampleLevel(gSamLinearWarp, uv, 0).rgb;
-        //const float3 tex_normal = normalTex.SampleLevel(gSamLinearWarp, uv, 0).rgb;
-        //float3x3 tbn = float3x3(vsTangent, vsBitangent, vsNormal);
-        //float3 normal = normalize(mul(tex_normal, tbn));
-
         float3 worldPosition = WorldRayOrigin() + WorldRayDirection() * RayTCurrent();
 
         payload.world_normal = vsNormal;

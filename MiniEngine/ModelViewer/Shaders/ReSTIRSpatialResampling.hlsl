@@ -97,7 +97,7 @@ void SpatialResamplingCS(uint2 dispatch_thread_id : SV_DispatchThreadID)
             }
         }
 
-        current_reservoir.comb_weight = current_reservoir.weight_sum / max(current_reservoir.M * current_reservoir.m_sample.pdf, 0.0001f);
+        current_reservoir.inverse_sir_pdf = current_reservoir.weight_sum / max(current_reservoir.M * current_reservoir.m_sample.pdf, 0.0001f);
         StoreReservoir(reservoir_coord, current_reservoir, rw_reservoir_ray_direction, rw_reservoir_ray_radiance, rw_reservoir_hit_distance, rw_reservoir_hit_normal, rw_reservoir_weights);
     }
     else

@@ -77,7 +77,7 @@ void UpscaleAndIntegrateCS(uint2 dispatch_thread_id : SV_DispatchThreadID)
                 float depth_weight = exp2(-10000.0 * (relative_distance * relative_distance));
                 
                 // diffuse lighting
-                float3 sample_light = reservoir_sample.m_sample.radiance * reservoir_sample.comb_weight;
+                float3 sample_light = reservoir_sample.m_sample.radiance * reservoir_sample.inverse_sir_pdf;
                 weighted_diffuse_lighting += sample_light * depth_weight * max(dot(world_normal, reservoir_sample.m_sample.ray_direction),0.0f);
 
                 // specular lighting

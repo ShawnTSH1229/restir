@@ -40,8 +40,8 @@ void ReSTIRTemporalDenoiseCS(uint2 dispatch_thread_id : SV_DispatchThreadID)
             float3 current_specular = output_specular_indirect[current_pixel_pos].xyz;
 
             //todo: temporal sample validation, which is similar to svgf
-            output_diffuse_indirect[current_pixel_pos] = float4(lerp(hist_diffuse, current_diffuse, 0.8f),1.0);
-            output_specular_indirect[current_pixel_pos] = float4(lerp(hist_specular, current_specular, 0.8f),1.0);
+            output_diffuse_indirect[current_pixel_pos] = float4(lerp(hist_diffuse, current_diffuse, 0.05f),1.0);
+            output_specular_indirect[current_pixel_pos] = float4(lerp(hist_specular, current_specular, 0.05f),1.0);
 
         }
     }

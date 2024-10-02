@@ -30,14 +30,14 @@ struct SReservoir
     SSample m_sample;
     float weight_sum;
     float M; //ReSTIR:Paper(3.1): First, M candidate samples y = y1,..., yM are sampled from a source distribution p(y).
-    float comb_weight;
+    float inverse_sir_pdf;
 };
 
 void InitializeReservoir(inout SReservoir reservoir)
 {
     reservoir.weight_sum = 0;
     reservoir.M = 0;
-    reservoir.comb_weight = 0;
+    reservoir.inverse_sir_pdf = 0;
 }
 
 bool UpdateReservoir(inout SReservoir reservoir, SSample new_sample, float weight_new, float noise)
@@ -57,7 +57,7 @@ bool UpdateReservoir(inout SReservoir reservoir, SSample new_sample, float weigh
 bool MergeReservoirSample(inout SReservoir reservoir_sample, SReservoir new_reservoir_sample, float other_sample_pdf, float noise)
 {
     float M0 = reservoir_sample.M;
-    bool is_changed = UpdateReservoir(reservoir_sample, new_reservoir_sample.m_sample, other_sample_pdf * new_reservoir_sample.M * new_reservoir_sample.comb_weight, noise);
+    bool is_changed = UpdateReservoir(reservoir_sample, new_reservoir_sample.m_sample, other_sample_pdf * new_reservoir_sample.M * new_reservoir_sample.inverse_sir_pdf, noise);
     reservoir_sample.M = M0 + new_reservoir_sample.M;
     return is_changed;
 }
@@ -145,7 +145,7 @@ SReservoir LoadReservoir(
     reservoir.m_sample = reservoir_sample;
     reservoir.weight_sum = reservoir_weights[reservoir_coord].x;
     reservoir.M = reservoir_weights[reservoir_coord].y;
-    reservoir.comb_weight = reservoir_weights[reservoir_coord].z;
+    reservoir.inverse_sir_pdf = reservoir_weights[reservoir_coord].z;
     return reservoir;
 }
 
@@ -164,6 +164,6 @@ void StoreReservoir(
     reservoir_hit_distance[reservoir_coord] = reservoir_sample.hit_distance;
     reservoir_hit_normal[reservoir_coord] = float4(reservoir_sample.hit_normal,1.0);
 
-    reservoir_weights[reservoir_coord] = float4(reservoir.weight_sum, reservoir.M, reservoir.comb_weight,1.0);
+    reservoir_weights[reservoir_coord] = float4(reservoir.weight_sum, reservoir.M, reservoir.inverse_sir_pdf,1.0);
 }
 #endif
